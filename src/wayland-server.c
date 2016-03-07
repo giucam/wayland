@@ -687,6 +687,18 @@ wl_resource_get_destroy_listener(struct wl_resource *resource,
 	return wl_signal_get(&resource->destroy_signal, notify);
 }
 
+/** Retrieve the interface of a resource.
+ *
+ * \param resource The resource object
+ *
+ * \memberof wl_resource
+ */
+WL_EXPORT const struct wl_interface *
+wl_resource_get_interface(struct wl_resource *resource)
+{
+	return resource->object.interface;
+}
+
 WL_EXPORT void
 wl_client_add_destroy_listener(struct wl_client *client,
 			       struct wl_listener *listener)
