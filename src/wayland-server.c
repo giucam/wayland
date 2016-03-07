@@ -1584,6 +1584,29 @@ wl_client_add_resource_created_listener(struct wl_client *client,
 	wl_signal_add(&client->resource_created_signal, listener);
 }
 
+/** Iterate over all the resources of a client
+ *
+ * \param client The client object
+ * \param iterator The iterator function
+ * \param user_data The user data pointer
+ *
+ * The function pointed by \a iterator will be called for each
+ * resource owned by the client. The \a user_data will be passed
+ * as the second argument of the iterator function.
+ *
+ * \memberof wl_client
+ */
+WL_EXPORT void
+wl_client_for_each_resource(struct wl_client *client,
+			    wl_client_for_each_resource_iterator_func_t iterator,
+			    void *user_data)
+{
+	/* wl_iterator_func_t passes wl_object as the first argument, and
+	 * wl_resource is a wl_object, so we can safely cast it. */
+	wl_iterator_func_t it = (wl_iterator_func_t)iterator;
+	wl_map_for_each(&client->objects, it, user_data);
+}
+
 /** \cond */ /* Deprecated functions below. */
 
 uint32_t
