@@ -81,6 +81,7 @@ struct wl_client {
 	struct wl_signal destroy_signal;
 	struct ucred ucred;
 	int error;
+	struct wl_signal resource_created_signal;
 };
 
 struct wl_display {
@@ -421,6 +422,7 @@ wl_client_create(struct wl_display *display, int fd)
 	if (client == NULL)
 		return NULL;
 
+	wl_signal_init(&client->resource_created_signal);
 	client->display = display;
 	client->source = wl_event_loop_add_fd(display->loop, fd,
 					      WL_EVENT_READABLE,
@@ -1451,6 +1453,7 @@ wl_resource_create(struct wl_client *client,
 		return NULL;
 	}
 
+	wl_signal_emit(&client->resource_created_signal, resource);
 	return resource;
 }
 
@@ -1562,6 +1565,23 @@ WL_EXPORT struct wl_client *
 wl_client_from_link(struct wl_list *link)
 {
 	return wl_container_of(link, (struct wl_client *)0, link);
+}
+
+/** Add a listener for the client's resource creation signal
+ *
+ * \param client The client object
+ * \param listener The listener to be added
+ *
+ * When a new resource is created for this client the listener
+ * will be notified, carrying the new resource as the data argument.
+ *
+ * \memberof wl_client
+ */
+WL_EXPORT void
+wl_client_add_resource_created_listener(struct wl_client *client,
+					struct wl_listener *listener)
+{
+	wl_signal_add(&client->resource_created_signal, listener);
 }
 
 /** \cond */ /* Deprecated functions below. */
