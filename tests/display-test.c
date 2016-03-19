@@ -161,7 +161,7 @@ client_get_seat_with_info(struct client *c, struct handler_info *hi)
 
 	assert(hi);
 	hi->seat = NULL;
-	wl_registry_add_listener(reg, &registry_listener, hi);
+	wl_registry_set_listener(reg, &registry_listener, hi);
 	wl_display_roundtrip(c->wl_display);
 	assert(hi->seat);
 

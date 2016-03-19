@@ -67,7 +67,7 @@ client_test_proxy_destroy(void)
 
 	registry = wl_display_get_registry(display);
 	assert(registry != NULL);
-	wl_registry_add_listener(registry, &registry_listener,
+	wl_registry_set_listener(registry, &registry_listener,
 				 &counter);
 	assert(wl_display_roundtrip(display) != -1);
 
@@ -121,12 +121,12 @@ client_test_multiple_queues(void)
 	state.done = false;
 	callback1 = wl_display_sync(state.display);
 	assert(callback1 != NULL);
-	wl_callback_add_listener(callback1, &sync_listener, &state);
+	wl_callback_set_listener(callback1, &sync_listener, &state);
 	wl_proxy_set_queue((struct wl_proxy *) callback1, queue);
 
 	state.callback2 = wl_display_sync(state.display);
 	assert(state.callback2 != NULL);
-	wl_callback_add_listener(state.callback2, &sync_listener, NULL);
+	wl_callback_set_listener(state.callback2, &sync_listener, NULL);
 	wl_proxy_set_queue((struct wl_proxy *) state.callback2, queue);
 
 	wl_display_flush(state.display);
@@ -172,12 +172,12 @@ client_test_queue_roundtrip(void)
 	/* arm a callback on the default queue */
 	callback1 = wl_display_sync(display);
 	assert(callback1 != NULL);
-	wl_callback_add_listener(callback1, &sync_listener_roundtrip, &done1);
+	wl_callback_set_listener(callback1, &sync_listener_roundtrip, &done1);
 
 	/* arm a callback on the other queue */
 	callback2 = wl_display_sync(display);
 	assert(callback2 != NULL);
-	wl_callback_add_listener(callback2, &sync_listener_roundtrip, &done2);
+	wl_callback_set_listener(callback2, &sync_listener_roundtrip, &done2);
 	wl_proxy_set_queue((struct wl_proxy *) callback2, queue);
 
 	/* roundtrip on default queue must not dispatch the other queue. */
@@ -191,7 +191,7 @@ client_test_queue_roundtrip(void)
 	done1 = false;
 	callback1 = wl_display_sync(display);
 	assert(callback1 != NULL);
-	wl_callback_add_listener(callback1, &sync_listener_roundtrip, &done1);
+	wl_callback_set_listener(callback1, &sync_listener_roundtrip, &done1);
 
 	wl_display_roundtrip_queue(display, queue);
 	assert(done1 == false);

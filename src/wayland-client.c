@@ -458,7 +458,7 @@ wl_proxy_destroy(struct wl_proxy *proxy)
  * \memberof wl_proxy
  */
 WL_EXPORT int
-wl_proxy_add_listener(struct wl_proxy *proxy,
+wl_proxy_set_listener(struct wl_proxy *proxy,
 		      void (**implementation)(void), void *data)
 {
 	if (proxy->object.implementation || proxy->dispatcher) {
@@ -1094,7 +1094,7 @@ wl_display_roundtrip_queue(struct wl_display *display, struct wl_event_queue *qu
 	if (callback == NULL)
 		return -1;
 	wl_proxy_set_queue((struct wl_proxy *) callback, queue);
-	wl_callback_add_listener(callback, &sync_listener, &done);
+	wl_callback_set_listener(callback, &sync_listener, &done);
 	while (!done && ret >= 0)
 		ret = wl_display_dispatch_queue(display, queue);
 
@@ -1960,3 +1960,22 @@ wl_log_set_handler_client(wl_log_func_t handler)
 {
 	wl_log_handler = handler;
 }
+
+
+/** \cond */ /* Deprecated functions below. */
+
+/** Deprecated. Use \a wl_proxy_set_listener instead.
+ */
+WL_EXPORT int
+wl_proxy_add_listener(struct wl_proxy *proxy,
+		      void (**implementation)(void), void *data)
+{
+	return wl_proxy_set_listener(proxy, implementation, data);
+}
+
+/** \endcond */
+
+/* Functions at the end of this file are deprecated.  Instead of adding new
+ * code here, add it before the comment above that states:
+ * Deprecated functions below.
+ */

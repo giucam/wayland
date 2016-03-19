@@ -429,7 +429,7 @@ registry_handle_globals(void *data, struct wl_registry *registry,
 	c->tc = wl_registry_bind(registry, id, &test_compositor_interface, ver);
 	assert(c->tc && "Failed binding to registry");
 
-	wl_proxy_add_listener((struct wl_proxy *) c->tc,
+	wl_proxy_set_listener((struct wl_proxy *) c->tc,
 			      (void *) &tc_listener, c);
 }
 
@@ -452,7 +452,7 @@ struct client *client_connect()
 	 * registry so that client can define it's own listener later */
 	reg = wl_display_get_registry(c->wl_display);
 	assert(reg);
-	wl_registry_add_listener(reg, &registry_listener, c);
+	wl_registry_set_listener(reg, &registry_listener, c);
 	wl_display_roundtrip(c->wl_display);
 	assert(c->tc);
 

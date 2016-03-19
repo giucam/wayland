@@ -1267,10 +1267,10 @@ emit_structs(struct wl_list *message_list, struct interface *interface, enum sid
 
 	if (side == CLIENT) {
 	    printf("static inline int\n"
-		   "%s_add_listener(struct %s *%s,\n"
+		   "%s_set_listener(struct %s *%s,\n"
 		   "%sconst struct %s_listener *listener, void *data)\n"
 		   "{\n"
-		   "\treturn wl_proxy_add_listener((struct wl_proxy *) %s,\n"
+		   "\treturn wl_proxy_set_listener((struct wl_proxy *) %s,\n"
 		   "%s(void (**)(void)) listener, data);\n"
 		   "}\n\n",
 		   interface->name, interface->name, interface->name,
@@ -1278,6 +1278,22 @@ emit_structs(struct wl_list *message_list, struct interface *interface, enum sid
 		   interface->name,
 		   interface->name,
 		   indent(37));
+	    printf("#ifndef WL_HIDE_DEPRECATED\n");
+	    printf("static inline int\n"
+	           "%s_add_listener(struct %s *%s,\n"
+		   "%sconst struct %s_listener *listener, void *data) WL_DEPRECATED;\n",
+	           interface->name, interface->name, interface->name,
+	           indent(14 + strlen(interface->name)), interface->name);
+	    printf("static inline int\n"
+	           "%s_add_listener(struct %s *%s,\n"
+		   "%sconst struct %s_listener *listener, void *data)\n"
+		   "{\n"
+		   "\treturn %s_set_listener(%s, listener, data);\n"
+		   "}\n",
+	           interface->name, interface->name, interface->name,
+	           indent(14 + strlen(interface->name)), interface->name,
+	           interface->name, interface->name);
+	    printf("#endif //WL_HIDE_DEPRECATED\n\n");
 	}
 }
 

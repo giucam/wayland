@@ -159,7 +159,7 @@ void
 wl_proxy_destroy(struct wl_proxy *proxy);
 
 int
-wl_proxy_add_listener(struct wl_proxy *proxy,
+wl_proxy_set_listener(struct wl_proxy *proxy,
 		      void (**implementation)(void), void *data);
 
 const void *
@@ -250,6 +250,16 @@ wl_display_read_events(struct wl_display *display);
 
 void
 wl_log_set_handler_client(wl_log_func_t handler);
+
+
+/* Deprecated functions below */
+#ifndef WL_HIDE_DEPRECATED
+
+int
+wl_proxy_add_listener(struct wl_proxy *proxy,
+		      void (**implementation)(void), void *data) WL_DEPRECATED;
+
+#endif
 
 #ifdef  __cplusplus
 }
