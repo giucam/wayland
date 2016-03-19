@@ -514,6 +514,19 @@ wl_shm_buffer_create(struct wl_client *client,
 
 void wl_log_set_handler_server(wl_log_func_t handler);
 
+enum wl_protocol_logger_direction {
+    WL_PROTOCOL_LOGGER_INCOMING,
+    WL_PROTOCOL_LOGGER_OUTGOING,
+};
+
+typedef void (*wl_protocol_logger_func_t)(void *, struct wl_resource *,
+                                          enum wl_protocol_logger_direction, const char *);
+void wl_add_protocol_logger(struct wl_display *display,
+                            wl_protocol_logger_func_t, void *user_data);
+
+void wl_remove_protocol_logger(struct wl_display *display,
+                            wl_protocol_logger_func_t, void *user_data);
+
 #ifdef  __cplusplus
 }
 #endif

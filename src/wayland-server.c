@@ -95,6 +95,7 @@ struct wl_display {
 	struct wl_list global_list;
 	struct wl_list socket_list;
 	struct wl_list client_list;
+	struct wl_list protocol_loggers;
 
 	struct wl_signal destroy_signal;
 	struct wl_signal create_client_signal;
@@ -121,9 +122,38 @@ struct wl_resource {
 	void *data;
 	int version;
 	wl_dispatcher_func_t dispatcher;
+	struct wl_resource *parent;
+};
+
+struct wl_protocol_logger {
+	struct wl_list link;
+	wl_protocol_logger_func_t func;
+	void *user_data;
 };
 
 static int debug_server = 0;
+
+static void
+closure_print(struct wl_resource *resource, struct wl_closure *closure, int send)
+{
+	struct wl_object *object = &resource->object;
+	struct wl_display *display = resource->client->display;
+	struct wl_protocol_logger *protocol_logger;
+	const char *message;
+
+	if (debug_server)
+		wl_closure_print(closure, object, send);
+
+	if (!wl_list_empty(&display->protocol_loggers)) {
+		message = wl_closure_format(closure, object);
+		wl_list_for_each(protocol_logger, &display->protocol_loggers, link) {
+			protocol_logger->func(protocol_logger->user_data,
+					      resource,
+					      send ? WL_PROTOCOL_LOGGER_OUTGOING :
+						     WL_PROTOCOL_LOGGER_INCOMING, message);
+		}
+	}
+}
 
 WL_EXPORT void
 wl_resource_post_event_array(struct wl_resource *resource, uint32_t opcode,
@@ -143,8 +173,7 @@ wl_resource_post_event_array(struct wl_resource *resource, uint32_t opcode,
 	if (wl_closure_send(closure, resource->client->connection))
 		resource->client->error = 1;
 
-	if (debug_server)
-		wl_closure_print(closure, object, true);
+	closure_print(resource, closure, true);
 
 	wl_closure_destroy(closure);
 }
@@ -183,8 +212,7 @@ wl_resource_queue_event_array(struct wl_resource *resource, uint32_t opcode,
 	if (wl_closure_queue(closure, resource->client->connection))
 		resource->client->error = 1;
 
-	if (debug_server)
-		wl_closure_print(closure, object, true);
+	closure_print(resource, closure, true);
 
 	wl_closure_destroy(closure);
 }
@@ -331,8 +359,7 @@ wl_client_connection_data(int fd, uint32_t mask, void *data)
 			break;
 		}
 
-		if (debug_server)
-			wl_closure_print(closure, object, false);
+		closure_print(resource, closure, false);
 
 		if ((resource_flags & WL_MAP_ENTRY_LEGACY) ||
 		    resource->dispatcher == NULL) {
@@ -879,6 +906,7 @@ wl_display_create(void)
 	wl_list_init(&display->socket_list);
 	wl_list_init(&display->client_list);
 	wl_list_init(&display->registry_resource_list);
+	wl_list_init(&display->protocol_loggers);
 
 	wl_signal_init(&display->destroy_signal);
 	wl_signal_init(&display->create_client_signal);
@@ -1461,6 +1489,60 @@ WL_EXPORT void
 wl_log_set_handler_server(wl_log_func_t handler)
 {
 	wl_log_handler = handler;
+}
+
+/** Adds a new protocol logger.
+ *
+ * When a new protocol message arrives or is sent from the server
+ * all the protocol logger functions will be called, carrying the
+ * \a user_data pointer, the relevant \a wl_resource, the direction
+ * of the message (incoming or outgoing) and the actual message.
+ *
+ * \param func The function to call to log a new protocol message
+ * \param user_data The user data pointer to pass to \a func
+ *
+ * \sa wl_remove_protocol_logger
+ *
+ * \memberof wl_display
+ */
+WL_EXPORT void
+wl_add_protocol_logger(struct wl_display *display,
+		       wl_protocol_logger_func_t func, void *user_data)
+{
+	struct wl_protocol_logger *logger;
+
+	logger = malloc(sizeof *logger);
+	if (!logger)
+		return;
+
+	logger->func = func;
+	logger->user_data = user_data;
+	wl_list_init(&logger->link);
+	wl_list_insert(&display->protocol_loggers, &logger->link);
+}
+
+/** Removes a protocol logger.
+ *
+ * If a protocol logger was previously added with the same \a func and
+ * \a user_data, it will be removed from the display's list so that it
+ * will not be invoked anymore.
+ *
+ * \sa wl_add_protocol_logger
+ *
+ * \memberof wl_display
+ */
+WL_EXPORT void
+wl_remove_protocol_logger(struct wl_display *display,
+		          wl_protocol_logger_func_t func, void *user_data)
+{
+	struct wl_protocol_logger *logger;
+	wl_list_for_each(logger, &display->protocol_loggers, link) {
+		if (logger->func == func && logger->user_data == user_data) {
+			wl_list_remove(&logger->link);
+			free(logger);
+			return;
+		}
+	}
 }
 
 /** Add support for a wl_shm pixel format

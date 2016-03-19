@@ -210,6 +210,10 @@ void
 wl_closure_print(struct wl_closure *closure,
 		 struct wl_object *target, int send);
 
+const char *
+wl_closure_format(struct wl_closure *closure,
+		  struct wl_object *target);
+
 void
 wl_closure_destroy(struct wl_closure *closure);
 

@@ -1181,71 +1181,128 @@ wl_closure_queue(struct wl_closure *closure, struct wl_connection *connection)
 	return result;
 }
 
-void
-wl_closure_print(struct wl_closure *closure, struct wl_object *target, int send)
+static inline int
+min(int a, int b)
 {
+	return a < b ? a : b;
+}
+
+/** Formats the closure and returns a static const char * with the value,
+ *  in the 'interface@id.message_name(args)' format.
+ *  DO NOT free or mess with the returned pointer.
+ */
+const char *
+wl_closure_format(struct wl_closure *closure, struct wl_object *target)
+{
+	static char *buffer = NULL;
+	static size_t buf_size;
 	int i;
 	struct argument_details arg;
 	const char *signature = closure->message->signature;
+	size_t size = 0;
+
+	if (!buffer) {
+		buf_size = 128;
+		buffer = malloc(buf_size);
+	}
+
+	size = snprintf(buffer, buf_size, "%s@%u.%s(",
+			target->interface->name, target->id,
+			closure->message->name);
+
+	for (i = 0; i < closure->count; i++) {
+		signature = get_next_argument(signature, &arg);
+		if (i > 0)
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 ", ");
+
+		switch (arg.type) {
+		case 'u':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "%u", closure->args[i].u);
+			break;
+		case 'i':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "%d", closure->args[i].i);
+			break;
+		case 'f':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size), "%f",
+					 wl_fixed_to_double(closure->args[i].f));
+			break;
+		case 's':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "\"%s\"", closure->args[i].s);
+			break;
+		case 'o':
+			if (closure->args[i].o)
+				size += snprintf(buffer + size,
+						 buf_size - min(size, buf_size), "%s@%u",
+						 closure->args[i].o->interface->name,
+						 closure->args[i].o->id);
+			else
+				size += snprintf(buffer + size,
+						 buf_size - min(size, buf_size),
+						 "nil");
+			break;
+		case 'n':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "new id %s@",
+					 (closure->message->types[i]) ?
+					 closure->message->types[i]->name :
+					 "[unknown]");
+			if (closure->args[i].n != 0)
+				size += snprintf(buffer + size,
+						 buf_size - min(size, buf_size),
+						 "%u", closure->args[i].n);
+			else
+				size += snprintf(buffer + size,
+						 buf_size - min(size, buf_size),
+						 "nil");
+			break;
+		case 'a':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "array");
+			break;
+		case 'h':
+			size += snprintf(buffer + size,
+					 buf_size - min(size, buf_size),
+					 "fd %d", closure->args[i].h);
+			break;
+		}
+	}
+
+	size += snprintf(buffer + size,
+			 buf_size - min(size, buf_size), ")");
+
+	if (size >= buf_size) {
+		buf_size = size + 1;
+		buffer = realloc(buffer, buf_size);
+		return wl_closure_format(closure, target);
+	}
+
+	return buffer;
+}
+
+void
+wl_closure_print(struct wl_closure *closure, struct wl_object *target, int send)
+{
 	struct timespec tp;
 	unsigned int time;
 
 	clock_gettime(CLOCK_REALTIME, &tp);
 	time = (tp.tv_sec * 1000000L) + (tp.tv_nsec / 1000);
 
-	fprintf(stderr, "[%10.3f] %s%s@%u.%s(",
+	fprintf(stderr, "[%10.3f] %s%s\n",
 		time / 1000.0,
-		send ? " -> " : "",
-		target->interface->name, target->id,
-		closure->message->name);
-
-	for (i = 0; i < closure->count; i++) {
-		signature = get_next_argument(signature, &arg);
-		if (i > 0)
-			fprintf(stderr, ", ");
-
-		switch (arg.type) {
-		case 'u':
-			fprintf(stderr, "%u", closure->args[i].u);
-			break;
-		case 'i':
-			fprintf(stderr, "%d", closure->args[i].i);
-			break;
-		case 'f':
-			fprintf(stderr, "%f",
-				wl_fixed_to_double(closure->args[i].f));
-			break;
-		case 's':
-			fprintf(stderr, "\"%s\"", closure->args[i].s);
-			break;
-		case 'o':
-			if (closure->args[i].o)
-				fprintf(stderr, "%s@%u",
-					closure->args[i].o->interface->name,
-					closure->args[i].o->id);
-			else
-				fprintf(stderr, "nil");
-			break;
-		case 'n':
-			fprintf(stderr, "new id %s@",
-				(closure->message->types[i]) ?
-				 closure->message->types[i]->name :
-				  "[unknown]");
-			if (closure->args[i].n != 0)
-				fprintf(stderr, "%u", closure->args[i].n);
-			else
-				fprintf(stderr, "nil");
-			break;
-		case 'a':
-			fprintf(stderr, "array");
-			break;
-		case 'h':
-			fprintf(stderr, "fd %d", closure->args[i].h);
-			break;
-		}
-	}
-
-	fprintf(stderr, ")\n");
+		send ? "-> " : "",
+		wl_closure_format(closure, target));
 }
 
 void
